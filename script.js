@@ -9,16 +9,18 @@ let conversation = [
     {
         role: "system",
         content: `
-You are Suresh's personal AI agent.
+You are Suresh's personal AI assistant.
 
-Your responsibilities:
-1. Give clear and accurate answers.
-2. Help with JavaScript, React, Node.js, DSA, and system design.
-3. Remember the conversation context.
-4. Explain concepts in simple language.
-5. Challenge incorrect assumptions respectfully.
-6. If you do not know something, say so honestly.
-        `
+Rules:
+1. Give accurate, evidence-based answers.
+2. Never invent facts, sources, names, statistics, or code.
+3. If you are uncertain, say "I am not sure."
+4. Never present assumptions as confirmed facts.
+5. For programming questions, explain your reasoning and check code carefully.
+6. If the question requires current information, tell the user that web verification is needed.
+7. Correct the user politely when their assumption is incorrect.
+8. Keep responses clear and concise.
+9. Do not repeat the same information unnecessarily.`
     }
 ];
 
@@ -33,6 +35,14 @@ inputImage.addEventListener("change", () => {
     reader.onload = (e) => {
         // Store Base64 image
         selectedImage = e.target.result.split(",")[1];
+
+        // Show preview inside uploadImage div
+        const previewImage = document.querySelector("#previewImage");
+
+        previewImage.src = e.target.result;
+
+        previewImage.style.objectFit = "cover";
+        previewImage.style.borderRadius = "40px";
          console.log(e)
         console.log("Image selected");
     };
@@ -130,7 +140,8 @@ async function getApiResponse(aiChatBox, message, image) {
 
                 options: {
                     num_predict: 300,
-                    temperature: 0.7
+                    temperature: 0.2,
+                    top_p: 0.8
                 }
             })
         });
@@ -220,7 +231,7 @@ function showLoading(message, image) {
 
     let html = `
         <div class="img">
-            <img src="user.png" alt="" style="
+            <img src="Ai.jpg" alt="" style="
                 width: 45px;
                 height: 45px;
                 border-radius: 50%;
@@ -248,8 +259,9 @@ function showLoading(message, image) {
 
 
 function sendMessage() {
-
-    let message = prompt.value.replace(/\/\*[\s\S]*?\*\//g, "").trim();
+    let message = prompt.value
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .trim();
 
     if (!message && !selectedImage) return;
 
@@ -259,24 +271,39 @@ function sendMessage() {
 
     let html = `
         <div class="img">
-            <img src="user.png" alt="" style="
-                width: 45px;
-                height: 45px;
-                border-radius: 50%;
-                object-fit: cover">
+            <img src="user.png" alt=""
+                style="
+                    width: 45px;
+                    height: 45px;
+                    border-radius: 50%;
+                    object-fit: cover;
+                ">
         </div>
 
-        <p class="text"></p>
+        <div class="text">
+            <p>${message}</p>
+
+            ${
+                imageToSend
+                    ? `<img
+                        src="data:image/jpeg;base64,${imageToSend}"
+                        style="
+                            max-width: 150px;
+                            max-height: 150px;
+                            border-radius: 12px;
+                            margin-top: 10px;
+                            object-fit: contain;
+                        "
+                    >`
+                    : ""
+            }
+        </div>
     `;
 
-    let userChatBox =
-        createChatBox(html, "user-message-box");
-
-    let textElement =
-        userChatBox.querySelector(".text");
-
-    textElement.innerText =
-         `${message}`;
+    let userChatBox = createChatBox(
+        html,
+        "user-message-box"
+    );
 
     ChatContainer.appendChild(userChatBox);
 
@@ -284,9 +311,15 @@ function sendMessage() {
 
     prompt.value = "";
 
-    // Clear selected image after storing it
+    // Clear selected image
     selectedImage = null;
     inputImage.value = "";
+
+    // Reset upload preview
+    const previewImage =
+        document.querySelector("#previewImage");
+
+    previewImage.src = "uploadImage.svg";
 
     setTimeout(() => {
         showLoading(message, imageToSend);
@@ -295,9 +328,25 @@ function sendMessage() {
 
 btn.addEventListener("click",sendMessage);
 
-prompt.addEventListener("keydown", (event)=>{
-    if(event.key=="Enter"){
-        event.preventDefault();
-        sendMessage();
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+
+        // Avoid triggering twice when typing in prompt
+        if (event.target === prompt) {
+            event.preventDefault();
+        }
+
+        // Don't send if another input or button is focused
+        if (
+            event.target.tagName === "INPUT" &&
+            event.target !== prompt
+        ) {
+            return;
+        }
+
+        if (prompt.value.trim() || selectedImage) {
+            event.preventDefault();
+            sendMessage();
+        }
     }
-})
+});
